@@ -1,13 +1,12 @@
+import math
 import torch
-import torch.nn.functional as F 
-import numpy as np 
-import math 
-from data import get_batch
+import torch.nn.functional as F
+import numpy as np
 from pathlib import Path
-from gensim.models.fasttext import FastText as FT_gensim
-from utils import nearest_neighbors, get_topic_coherence, get_topic_diversity
-
+from gensim.models import FastText as FT_gensim
 from torch import nn, optim
+from data import get_batch
+from utils import nearest_neighbors, get_topic_coherence, get_topic_diversity
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -231,41 +230,39 @@ class ETM(nn.Module):
                                         'models', 
                                         'embeddings_one_gram_fast_tweets_only').__str__()
         model_gensim = FT_gensim.load(model_path)
-
-        # need to update this .. 
+        ## need to update this ..
         queries = ['felix', 'covid', 'pprd', '100jours', 'beni', 'adf', 'muyembe', 'fally']
 
         ## visualize topics using monte carlo
         results_file_name = "topic_results_{}_{}.txt".format(args.batch_size, args.epochs)
         results_file_name = Path.cwd().joinpath("results", results_file_name)
         with torch.no_grad():
-            print('#'*100)
+            print('#' * 100)
             print('Visualize topics...')
             topics_words = []
             gammas = self.get_beta()
             for k in range(args.num_topics):
                 gamma = gammas[k]
-                top_words = list(gamma.cpu().numpy().argsort()[-args.num_words+1:][::-1])
+                top_words = list(gamma.cpu().numpy().argsort()[-args.num_words + 1:][::-1])
                 topic_words = [vocabulary[a].strip() for a in top_words]
                 topics_words.append(' '.join(topic_words))
                 with open(results_file_name, "a") as results_file:
-	                results_file.write('Topic {}: {}\n'.format(k, topic_words))
+                    results_file.write('Topic {}: {}\n'.format(k, topic_words))
             with open(results_file_name, "a") as results_file:
-	            results_file.write(10*'#'+'\n') # But this could have been done as a function
-
+                results_file.write(10 * '#' + '\n')  # But this could have been done as a function
             if show_emb:
                 ## visualize word embeddings by using V to get nearest neighbors
-                print('#'*100)
+                print('#' * 100)
                 print('Visualize word embeddings by using output embedding matrix')
                 try:
                     embeddings = self.rho.weight  # Vocab_size x E
                 except:
-                    embeddings = self.rho         # Vocab_size x E
+                    embeddings = self.rho  # Vocab_size x E
                 neighbors = []
                 for word in queries:
                     print('word: {} .. neighbors: {}'.format(
                         word, nearest_neighbors(model_gensim, word)))
-                print('#'*100)
+                print('#' * 100)
 
 
     def evaluate(self, args, source, training_set, vocabulary , test_1, test_2, tc=False, td=False):

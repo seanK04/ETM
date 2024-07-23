@@ -1,23 +1,12 @@
 #/usr/bin/python
-
 from __future__ import print_function
 
 import argparse
 import torch
-import pickle 
 import numpy as np 
 import os 
-import math 
-import random 
-import sys
-import matplotlib.pyplot as plt 
 import data
-import scipy.io
-
-from torch import nn, optim
-from torch.nn import functional as F
 from pathlib import Path
-from gensim.models.fasttext import FastText as FT_gensim
 import tracemalloc
 
 
