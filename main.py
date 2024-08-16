@@ -147,8 +147,10 @@ if args.mode == 'train':
             lr = optimizer.param_groups[0]['lr']
             if args.anneal_lr and (len(all_val_ppls) > args.nonmono and val_ppl > min(all_val_ppls[:-args.nonmono]) and lr > 1e-5):
                 optimizer.param_groups[0]['lr'] /= args.lr_factor
+        """
         if epoch % args.visualize_every == 0:
             model.visualize(args, vocabulary = vocab)
+        """
         all_val_ppls.append(val_ppl)
     with open(ckpt, 'rb') as f:
         model = torch.load(f)
