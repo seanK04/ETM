@@ -20,7 +20,8 @@ def read_mat_file(key, path):
     Returns:
         [type]: [description]
     """
-    term_path = Path().cwd().joinpath('data', 'preprocess', path)
+    #term_path = Path().cwd().joinpath('data', 'preprocess', path)
+    term_path = Path(path).with_suffix('.mat')
     doc = loadmat(term_path)[key]
     return doc
 
@@ -50,9 +51,8 @@ def get_data(doc_terms_file_name="tf_idf_doc_terms_matrix", terms_filename="tf_i
     """
     doc_term_matrix = read_mat_file("doc_terms_matrix", doc_terms_file_name)
     terms = read_mat_file("terms", terms_filename)
-    vocab = terms
+    vocab = terms.flatten() #did not use flatten before
     train, validation, test_1, test_2 = split_train_test_matrix(doc_term_matrix)
-
     return vocab, train, validation, test_1, test_2
 
 def get_batch(doc_terms_matrix, indices, device):
@@ -67,7 +67,7 @@ def get_batch(doc_terms_matrix, indices, device):
         vocab_size ([type]): [description]
 
     Returns:
-        [numpy arayy ]: a numpy array with the data passed as parameter
+        torch.Tensor: A tensor with the data passed as parameter, moved to the specified device.
     """
     data_batch = doc_terms_matrix[indices, :]
     data_batch = torch.from_numpy(data_batch.toarray()).float().to(device)

@@ -111,7 +111,8 @@ class ETM(nn.Module):
 
     def get_theta(self, normalized_bows):
         """
-        getting the topic poportion for the document passed in the normalixe bow or tf-idf"""
+        getting the topic proportion for the document passed in the normalixe bow or tf-idf
+        """
         mu_theta, logsigma_theta, kld_theta = self.encode(normalized_bows)
         z = self.reparameterize(mu_theta, logsigma_theta)
         theta = F.softmax(z, dim=-1) 
@@ -139,7 +140,6 @@ class ETM(nn.Module):
             theta, kld_theta = self.get_theta(normalized_bows)
         else:
             kld_theta = None
-
         ## get \beta
         beta = self.get_beta()
 
@@ -187,15 +187,20 @@ class ETM(nn.Module):
         cnt = 0
         number_of_docs = torch.randperm(args.num_docs_train)
         batch_indices = torch.split(number_of_docs, args.batch_size)
+        print(f'The number of docs being trained is {args.num_docs_train}')
+        print(f'The size of each training batch is {args.batch_size}')
         print("The number of the indices I am using for the training is ", len(batch_indices))
         for idx, indices in enumerate(batch_indices):
             print("Running for ", idx)
             self.optimizer.zero_grad()
             self.zero_grad()
             data_batch = get_batch(training_set, indices, device)
-            normalized_data_batch = data_batch
+            sums = data_batch.sum(1, keepdim=True)
+            sums[sums == 0] = 1  # Avoid division by zero for empty documents
+            normalized_data_batch = data_batch / sums
             recon_loss, kld_theta = self.forward(data_batch, normalized_data_batch)
             total_loss = recon_loss + kld_theta
+
             total_loss.backward()
             if args.clip > 0:
                 torch.nn.utils.clip_grad_norm_(self.parameters(), args.clip)
@@ -204,6 +209,7 @@ class ETM(nn.Module):
             acc_loss += torch.sum(recon_loss).item()
             acc_kl_theta_loss += torch.sum(kld_theta).item()
             cnt += 1
+            
             if idx % args.log_interval == 0 and idx > 0:
                 cur_loss = round(acc_loss / cnt, 2) 
                 cur_kl_theta = round(acc_kl_theta_loss / cnt, 2) 

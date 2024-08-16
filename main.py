@@ -8,6 +8,7 @@ import os
 import data
 from pathlib import Path
 import tracemalloc
+from scipy.io import loadmat
 
 
 from etm import ETM
