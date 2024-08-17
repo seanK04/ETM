@@ -3,8 +3,9 @@ import torch
 from scipy.io import loadmat
 from pathlib import Path
 from sklearn.model_selection import train_test_split
-from gensim.models.fasttext import FastText as FT_gensim
 from tqdm import tqdm
+from transformers import AutoTokenizer, AutoModel
+
 
 def read_mat_file(key, path):
     """
@@ -81,27 +82,29 @@ def read_embedding_matrix(vocab, device,  load_trainned=True):
 
     # we need to use tensorflow embedding lookup heer
     """
-    model_path = Path.home().joinpath("Projects", 
-                                    "Personal", 
-                                    "balobi_nini", 
-                                    'models', 
-                                    'embeddings_one_gram_fast_tweets_only').__str__()
     embeddings_path = Path().cwd().joinpath('data', 'preprocess', "embedding_matrix.npy")
 
     if load_trainned:
         embeddings_matrix = np.load(embeddings_path, allow_pickle=True)
     else:
-        model_gensim = FT_gensim.load(model_path)
-        vectorized_get_embeddings = np.vectorize(model_gensim.wv.get_vector)
-        embeddings_matrix = np.zeros(shape=(len(vocab),50)) #should put the embeding size as a vector
-        print("starting getting the word embeddings ++++ ")
+        # Use Hugging Face's BERT model to generate embeddings
+        tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+        model = AutoModel.from_pretrained("bert-base-uncased").to(device)
+
+        embeddings_matrix = np.zeros((len(vocab), model.config.hidden_size))
+        print("Starting to generate word embeddings using Hugging Face model...")
         vocab = vocab.ravel()
-        for index, word in tqdm(enumerate(vocab)):
-            vector = model_gensim.wv.get_vector(word)
-            embeddings_matrix[index] = vector
-        print("done getting the word embeddings ")
+
+        for index, word in tqdm(enumerate(vocab), total=len(vocab)):
+            inputs = tokenizer(str(word), return_tensors="pt", truncation=True, padding=True).to(device)
+            with torch.no_grad():
+                outputs = model(**inputs)
+            # Use the mean of the token embeddings as the word embedding
+            embeddings_matrix[index] = outputs.last_hidden_state.mean(dim=1).cpu().numpy()
+
+        print("Done generating the word embeddings.")
         with open(embeddings_path, 'wb') as file_path:
             np.save(file_path, embeddings_matrix)
 
-    embeddings = torch.from_numpy(embeddings_matrix).to(device)
+    embeddings = torch.from_numpy(embeddings_matrix).float().to(device)
     return embeddings

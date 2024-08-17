@@ -1,5 +1,6 @@
 import torch 
 import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity 
 
 def get_topic_diversity(beta, topk):
     num_topics = beta.shape[0]
@@ -73,7 +74,16 @@ def get_topic_coherence(beta, data, vocab):
     TC = np.mean(TC) / counter
     print('Topic coherence is: {}'.format(TC))
 
-def nearest_neighbors(model, word):
-    nearest_neighbors = model.wv.most_similar(word, topn=20)
-    nearest_neighbors = [comp[0] for comp in nearest_neighbors]
-    return nearest_neighbors
+
+# For Hugging Face
+def get_word_embedding(word, tokenizer, model):
+    inputs = tokenizer(word, return_tensors="pt")
+    outputs = model(**inputs)
+    return outputs.last_hidden_state.mean(dim=1).detach().numpy()
+
+def nearest_neighbors(model, tokenizer, word, vocab, topn=20):
+    query_embedding = get_word_embedding(word, tokenizer, model)
+    vocab_embeddings = np.array([get_word_embedding(v, tokenizer, model) for v in vocab])
+    similarities = cosine_similarity(query_embedding, vocab_embeddings).flatten()
+    top_indices = similarities.argsort()[-topn:][::-1]
+    return [vocab[i] for i in top_indices]

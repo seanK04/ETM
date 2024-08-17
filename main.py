@@ -130,7 +130,7 @@ if args.mode == 'train':
     all_val_ppls = []
     print('\n')
     print('Visualizing model quality before training...', args.epochs)
-    #model.visualize(args, vocabulary = vocab)
+    model.visualize(args, vocabulary = vocab)
     print('\n')
     for epoch in range(0, args.epochs):
         print("I am training for epoch", epoch)
@@ -147,10 +147,8 @@ if args.mode == 'train':
             lr = optimizer.param_groups[0]['lr']
             if args.anneal_lr and (len(all_val_ppls) > args.nonmono and val_ppl > min(all_val_ppls[:-args.nonmono]) and lr > 1e-5):
                 optimizer.param_groups[0]['lr'] /= args.lr_factor
-        """
         if epoch % args.visualize_every == 0:
             model.visualize(args, vocabulary = vocab)
-        """
         all_val_ppls.append(val_ppl)
     with open(ckpt, 'rb') as f:
         model = torch.load(f)
@@ -195,7 +193,7 @@ else:
         for k in range(args.num_topics):#topic_indices:
             gamma = beta[k]
             top_words = list(gamma.cpu().numpy().argsort()[-args.num_words+1:][::-1])
-            topic_words = [vocab[a] for a in top_words]
+            topic_words = [str(vocab[a]) for a in top_words]
             print('Topic {}: {}'.format(k, topic_words))
 
         if args.train_embeddings:

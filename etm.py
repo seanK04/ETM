@@ -3,10 +3,12 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from pathlib import Path
-from gensim.models import FastText as FT_gensim
+#from gensim.models import FastText as FT_gensim
 from torch import nn, optim
 from data import get_batch
 from utils import nearest_neighbors, get_topic_coherence, get_topic_diversity
+from transformers import AutoTokenizer, AutoModel
+from sklearn.metrics.pairwise import cosine_similarity
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -230,12 +232,10 @@ class ETM(nn.Module):
     def visualize(self, args, vocabulary, show_emb=False):
         Path.cwd().joinpath("results").mkdir(parents=True, exist_ok=True)
         self.eval()
-        model_path = Path.home().joinpath("Projects", 
-                                        "Personal", 
-                                        "balobi_nini", 
-                                        'models', 
-                                        'embeddings_one_gram_fast_tweets_only').__str__()
-        model_gensim = FT_gensim.load(model_path)
+        # Load Hugging Face model and tokenizer
+        tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+        model = AutoModel.from_pretrained("bert-base-uncased")
+
         ## need to update this ..
         queries = ['felix', 'covid', 'pprd', '100jours', 'beni', 'adf', 'muyembe', 'fally']
 
@@ -250,24 +250,18 @@ class ETM(nn.Module):
             for k in range(args.num_topics):
                 gamma = gammas[k]
                 top_words = list(gamma.cpu().numpy().argsort()[-args.num_words + 1:][::-1])
-                topic_words = [vocabulary[a].strip() for a in top_words]
+                topic_words = [str(vocabulary[a]).strip() for a in top_words]
                 topics_words.append(' '.join(topic_words))
                 with open(results_file_name, "a") as results_file:
                     results_file.write('Topic {}: {}\n'.format(k, topic_words))
             with open(results_file_name, "a") as results_file:
                 results_file.write(10 * '#' + '\n')  # But this could have been done as a function
             if show_emb:
-                ## visualize word embeddings by using V to get nearest neighbors
                 print('#' * 100)
                 print('Visualize word embeddings by using output embedding matrix')
-                try:
-                    embeddings = self.rho.weight  # Vocab_size x E
-                except:
-                    embeddings = self.rho  # Vocab_size x E
-                neighbors = []
                 for word in queries:
-                    print('word: {} .. neighbors: {}'.format(
-                        word, nearest_neighbors(model_gensim, word)))
+                    neighbors = nearest_neighbors(model, tokenizer, word, vocabulary)
+                    print(f'word: {word} .. neighbors: {neighbors}')
                 print('#' * 100)
 
 
