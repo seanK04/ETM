@@ -72,20 +72,31 @@ def get_batch(doc_terms_matrix, indices, device):
     return data_batch
 
 
-def read_embedding_matrix(vocab, device,  load_trainned=True):
+def read_embedding_matrix(vocab, device, load_trainned=True, batch_size=32):
     """
-    read the embedding  matrix passed as parameter and return it as an vocabulary of each word 
-    with the corresponding embeddings
+    Read the embedding matrix passed as a parameter and return it as a vocabulary of each word 
+    with the corresponding embeddings.
 
     Args:
-        path ([type]): [description]
+        vocab (np.ndarray): Vocabulary array containing words.
+        device (torch.device): Device to perform computations on (e.g., 'cuda' or 'cpu').
+        load_trainned (bool): Whether to load pre-trained embeddings or generate new ones.
+        batch_size (int): Number of words to process in each batch.
 
-    # we need to use tensorflow embedding lookup heer
+    Returns:
+        torch.Tensor: Embedding matrix as a PyTorch tensor.
     """
-    embeddings_path = Path().cwd().joinpath('data', 'preprocess', "embedding_matrix.npy")
+    embeddings_dir = Path().cwd().joinpath('data', 'preprocess')
+    embeddings_path = embeddings_dir.joinpath("embedding_matrix.npy")
+
+    # Ensure the directory exists
+    embeddings_dir.mkdir(parents=True, exist_ok=True)
 
     if load_trainned:
-        embeddings_matrix = np.load(embeddings_path, allow_pickle=True)
+        if embeddings_path.exists():
+            embeddings_matrix = np.load(embeddings_path, allow_pickle=True)
+        else:
+            raise FileNotFoundError(f"Pre-trained embedding file not found at {embeddings_path}")
     else:
         # Use Hugging Face's BERT model to generate embeddings
         tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
@@ -95,12 +106,17 @@ def read_embedding_matrix(vocab, device,  load_trainned=True):
         print("Starting to generate word embeddings using Hugging Face model...")
         vocab = vocab.ravel()
 
-        for index, word in tqdm(enumerate(vocab), total=len(vocab)):
-            inputs = tokenizer(str(word), return_tensors="pt", truncation=True, padding=True).to(device)
+        # Ensure vocabulary is a list of strings
+        vocab = [word.decode('utf-8') if isinstance(word, bytes) else str(word) for word in vocab]
+
+        for i in tqdm(range(0, len(vocab), batch_size), total=len(vocab) // batch_size):
+            batch_words = vocab[i:i + batch_size]
+            inputs = tokenizer(batch_words, return_tensors="pt", truncation=True, padding=True).to(device)
             with torch.no_grad():
                 outputs = model(**inputs)
             # Use the mean of the token embeddings as the word embedding
-            embeddings_matrix[index] = outputs.last_hidden_state.mean(dim=1).cpu().numpy()
+            batch_embeddings = outputs.last_hidden_state.mean(dim=1).cpu().numpy()
+            embeddings_matrix[i:i + batch_size] = batch_embeddings
 
         print("Done generating the word embeddings.")
         with open(embeddings_path, 'wb') as file_path:

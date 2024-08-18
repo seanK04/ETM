@@ -30,6 +30,8 @@ parser.add_argument('--emb_size', type=int, default=300, help='dimension of embe
 parser.add_argument('--t_hidden_size', type=int, default=800, help='dimension of hidden space of q(theta)')
 parser.add_argument('--theta_act', type=str, default='relu', help='tanh, softplus, relu, rrelu, leakyrelu, elu, selu, glu)')
 parser.add_argument('--train_embeddings', type=int, default=0, help='whether to fix rho or train it')
+parser.add_argument('--load_trainned', type=int, default=1, help='Set to 1 to load pre-existing embeddings from file; set to 0 to generate new embeddings using a Hugging Face model and save them to file.')
+
 
 ### optimization-related arguments
 parser.add_argument('--lr', type=float, default=0.005, help='learning rate')
@@ -87,7 +89,7 @@ args.num_docs_test_2 = test_2.shape[0]
 
 embeddings = None
 if not args.train_embeddings:
-    embeddings = data.read_embedding_matrix(vocab, device, load_trainned=False)
+    embeddings = data.read_embedding_matrix(vocab, device, load_trainned=args.load_trainned)
     args.embeddings_dim = embeddings.size()
 
 print('=*'*100)
@@ -208,6 +210,7 @@ else:
             for word in queries:
                 print('word: {} .. etm neighbors: {}'.format(word, nearest_neighbors(word, rho_etm, vocab)))
             print('\n')
+            
 
 current, peak = tracemalloc.get_traced_memory()
 print(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")

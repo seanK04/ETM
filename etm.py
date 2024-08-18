@@ -9,7 +9,13 @@ from data import get_batch
 from utils import nearest_neighbors, get_topic_coherence, get_topic_diversity
 from transformers import AutoTokenizer, AutoModel
 from sklearn.metrics.pairwise import cosine_similarity
+# Suppress specific warnings related to parameter names
+import warnings
+from transformers import logging as hf_logging
 
+hf_logging.set_verbosity_error()
+warnings.filterwarnings("ignore", message=r"A parameter name that contains `beta`", category=UserWarning)
+warnings.filterwarnings("ignore", message=r"A parameter name that contains `gamma`", category=UserWarning)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class ETM(nn.Module):
@@ -29,15 +35,16 @@ class ETM(nn.Module):
         self.theta_act = self.get_activation(theta_act)
         
         ## define the word embedding matrix \rho
+        ## define the matrix containing the topic embeddings
+
         if train_embeddings:
             self.rho = nn.Linear(rho_size, vocab_size, bias=False)
+            self.alphas = nn.Linear(rho_size, num_topics, bias=False)
         else:
             num_embeddings, emsize = embeddings.size()
-            rho = nn.Embedding(num_embeddings, emsize)
             self.rho = embeddings.clone().float().to(device)
+            self.alphas = nn.Linear(emsize, num_topics, bias=False)
 
-        ## define the matrix containing the topic embeddings
-        self.alphas = nn.Linear(rho_size, num_topics, bias=False)
     
         ## define variational distribution for \theta_{1:D} via amortizartion
         print(vocab_size, " THE Vocabulary size is here ")
